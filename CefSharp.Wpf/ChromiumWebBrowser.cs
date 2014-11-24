@@ -971,6 +971,10 @@ namespace CefSharp.Wpf
 
         public void Load(string url)
         {
+            //Added url check since managedCefBrowserAdapter crahses on null or string empty.
+            if (string.IsNullOrEmpty(url)) 
+                return;
+
             if (!Cef.IsInitialized &&
                 !Cef.Initialize())
             {
