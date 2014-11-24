@@ -344,6 +344,13 @@ namespace CefSharp.Wpf
             }
             disposables.Clear();
 
+            //Free up CleanupElement
+            if(CleanupElement != null)
+            {
+                CleanupElement.Unloaded -= OnCleanupElementUnloaded;
+                CleanupElement = null;
+            }
+
             UiThreadRunAsync(() => WebBrowser = null);
             managedCefBrowserAdapter = null;
             ConsoleMessage = null;
