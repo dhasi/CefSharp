@@ -151,10 +151,8 @@ namespace CefSharp.Wpf
 
         protected virtual void OnAddressChanged(string oldValue, string newValue)
         {
-            if (ignoreUriChange)
-            {
+            if (ignoreUriChange || WebBrowser == null)
                 return;
-            }
 
             Load(newValue);
         }
@@ -470,8 +468,11 @@ namespace CefSharp.Wpf
                 return;
             }
 
-            managedCefBrowserAdapter.CreateOffscreenBrowser(BrowserSettings ?? new BrowserSettings());
-            browserCreated = true;
+            if (managedCefBrowserAdapter != null)
+            {
+                managedCefBrowserAdapter.CreateOffscreenBrowser(BrowserSettings ?? new BrowserSettings());
+                browserCreated = true;
+            }
         }
 
         private void UiThreadRunAsync(Action action, DispatcherPriority priority = DispatcherPriority.DataBind)
@@ -490,7 +491,8 @@ namespace CefSharp.Wpf
         {
             // Initialize RenderClientAdapter when WPF has calculated the actual size of current content.
             CreateOffscreenBrowserWhenActualSizeChanged();
-            managedCefBrowserAdapter.WasResized();
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.WasResized();
         }
 
         private void OnIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs args)
@@ -632,10 +634,8 @@ namespace CefSharp.Wpf
                         return IntPtr.Zero;
                     }
 
-                    if (managedCefBrowserAdapter.SendKeyEvent(message, wParam.ToInt32(), 0))
-                    {
+                    if (managedCefBrowserAdapter != null && managedCefBrowserAdapter.SendKeyEvent(message, wParam.ToInt32(), 0))
                         handled = true;
-                    }
 
                     break;
             }
@@ -745,7 +745,7 @@ namespace CefSharp.Wpf
 
             if (Keyboard.IsKeyDown(Key.LeftAlt))
             {
-                modifiers |= CefEventFlags.AltDown| CefEventFlags.IsLeft;
+                modifiers |= CefEventFlags.AltDown | CefEventFlags.IsLeft;
             }
 
             if (Keyboard.IsKeyDown(Key.RightAlt))
@@ -822,17 +822,13 @@ namespace CefSharp.Wpf
         private void OnGotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
         {
             if (managedCefBrowserAdapter != null)
-            {
                 managedCefBrowserAdapter.SendFocusEvent(true);
-            }
         }
 
         private void OnLostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
         {
             if (managedCefBrowserAdapter != null)
-            {
                 managedCefBrowserAdapter.SendFocusEvent(false);
-            }
         }
 
         protected override void OnPreviewKeyDown(KeyEventArgs e)
@@ -857,7 +853,8 @@ namespace CefSharp.Wpf
                 var message = (int)(e.IsDown ? WM.KEYDOWN : WM.KEYUP);
                 var virtualKey = KeyInterop.VirtualKeyFromKey(e.Key);
 
-                managedCefBrowserAdapter.SendKeyEvent(message, virtualKey, modifiers);
+                if (managedCefBrowserAdapter != null)
+                    managedCefBrowserAdapter.SendKeyEvent(message, virtualKey, modifiers);
 
                 if (KeysToSendtoBrowser.Contains(e.Key))
                 {
@@ -873,9 +870,7 @@ namespace CefSharp.Wpf
             var modifiers = GetModifiers(e);
 
             if (managedCefBrowserAdapter != null)
-            {
                 managedCefBrowserAdapter.OnMouseMove((int)point.X, (int)point.Y, false, modifiers);
-            }
         }
 
         protected override void OnMouseWheel(MouseWheelEventArgs e)
@@ -883,19 +878,19 @@ namespace CefSharp.Wpf
             var point = GetPixelPosition(e);
 
             if (managedCefBrowserAdapter != null)
-            {
                 managedCefBrowserAdapter.OnMouseWheel(
                     (int)point.X,
                     (int)point.Y,
                     deltaX: 0,
                     deltaY: e.Delta
                     );
-            }
+
         }
 
         public void SendMouseWheelEvent(int x, int y, int deltaX, int deltaY)
         {
-            managedCefBrowserAdapter.OnMouseWheel(x, y, deltaX, deltaY);
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.OnMouseWheel(x, y, deltaX, deltaY);
         }
 
         protected void PopupMouseEnter(object sender, MouseEventArgs e)
@@ -927,9 +922,7 @@ namespace CefSharp.Wpf
             var modifiers = GetModifiers(e);
 
             if (managedCefBrowserAdapter != null)
-            {
                 managedCefBrowserAdapter.OnMouseMove(-1, -1, true, modifiers);
-            }
         }
 
         private void OnMouseButton(MouseButtonEventArgs e)
@@ -959,9 +952,7 @@ namespace CefSharp.Wpf
             var point = GetPixelPosition(e);
 
             if (managedCefBrowserAdapter != null)
-            {
                 managedCefBrowserAdapter.OnMouseButton((int)point.X, (int)point.Y, mouseButtonType, mouseUp, e.ClickCount, modifiers);
-            }
         }
 
         void IWebBrowserInternal.OnInitialized()
@@ -977,35 +968,43 @@ namespace CefSharp.Wpf
                 throw new InvalidOperationException("Cef::Initialize() failed");
             }
 
-            // TODO: Consider making the delay here configurable.
-            tooltipTimer = new DispatcherTimer(
-                TimeSpan.FromSeconds(0.5),
-                DispatcherPriority.Render,
-                OnTooltipTimerTick,
-                Dispatcher
-                );
+            //Added null check -> binding-triggered changes of Address will lead to a nullref after Dispose has been called.
+            if (managedCefBrowserAdapter != null)
+            {
+                // TODO: Consider making the delay here configurable.
+                tooltipTimer = new DispatcherTimer(
+                    TimeSpan.FromSeconds(0.5),
+                    DispatcherPriority.Render,
+                    OnTooltipTimerTick,
+                    Dispatcher
+                    );
 
-            managedCefBrowserAdapter.LoadUrl(url);
+                managedCefBrowserAdapter.LoadUrl(url);
+            }
         }
 
         public void LoadHtml(string html, string url)
         {
-            managedCefBrowserAdapter.LoadHtml(html, url);
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.LoadHtml(html, url);
         }
 
         public void Undo()
         {
-            managedCefBrowserAdapter.Undo();
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.Undo();
         }
 
         public void Redo()
         {
-            managedCefBrowserAdapter.Redo();
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.Redo();
         }
 
         public void Cut()
         {
-            managedCefBrowserAdapter.Cut();
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.Cut();
         }
 
         public void Copy()
@@ -1015,32 +1014,38 @@ namespace CefSharp.Wpf
 
         public void Paste()
         {
-            managedCefBrowserAdapter.Paste();
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.Paste();
         }
 
         public void Delete()
         {
-            managedCefBrowserAdapter.Delete();
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.Delete();
         }
 
         public void SelectAll()
         {
-            managedCefBrowserAdapter.SelectAll();
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.SelectAll();
         }
 
         public void Stop()
         {
-            managedCefBrowserAdapter.Stop();
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.Stop();
         }
 
         public void Back()
         {
-            managedCefBrowserAdapter.GoBack();
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.GoBack();
         }
 
         public void Forward()
         {
-            managedCefBrowserAdapter.GoForward();
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.GoForward();
         }
 
         public void Reload()
@@ -1050,22 +1055,26 @@ namespace CefSharp.Wpf
 
         public void Reload(bool ignoreCache)
         {
-            managedCefBrowserAdapter.Reload(ignoreCache);
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.Reload(ignoreCache);
         }
 
         public void Print()
         {
-            managedCefBrowserAdapter.Print();
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.Print();
         }
 
         public void Find(int identifier, string searchText, bool forward, bool matchCase, bool findNext)
         {
-            managedCefBrowserAdapter.Find(identifier, searchText, forward, matchCase, findNext);
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.Find(identifier, searchText, forward, matchCase, findNext);
         }
 
         public void StopFinding(bool clearSelection)
         {
-            managedCefBrowserAdapter.StopFinding(clearSelection);
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.StopFinding(clearSelection);
         }
 
         private void ZoomIn()
@@ -1094,12 +1103,14 @@ namespace CefSharp.Wpf
 
         public void ShowDevTools()
         {
-            managedCefBrowserAdapter.ShowDevTools();
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.ShowDevTools();
         }
 
         public void CloseDevTools()
         {
-            managedCefBrowserAdapter.CloseDevTools();
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.CloseDevTools();
         }
 
         void IWebBrowserInternal.OnFrameLoadStart(string url, bool isMainFrame)
@@ -1155,12 +1166,14 @@ namespace CefSharp.Wpf
 
         public void RegisterJsObject(string name, object objectToBind)
         {
-            managedCefBrowserAdapter.RegisterJsObject(name, objectToBind);
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.RegisterJsObject(name, objectToBind);
         }
 
         public void ExecuteScriptAsync(string script)
         {
-            managedCefBrowserAdapter.ExecuteScriptAsync(script);
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.ExecuteScriptAsync(script);
         }
 
         public Task<JavascriptResponse> EvaluateScriptAsync(string script)
@@ -1170,7 +1183,10 @@ namespace CefSharp.Wpf
 
         public Task<JavascriptResponse> EvaluateScriptAsync(string script, TimeSpan? timeout)
         {
-            return managedCefBrowserAdapter.EvaluateScriptAsync(script, timeout);
+            return managedCefBrowserAdapter != null ?
+                managedCefBrowserAdapter.EvaluateScriptAsync(script, timeout) :
+                Task.Factory.StartNew(() => new JavascriptResponse());
+
         }
 
         void IRenderWebBrowser.SetCursor(IntPtr handle)
@@ -1232,20 +1248,23 @@ namespace CefSharp.Wpf
 
         public void ViewSource()
         {
-            managedCefBrowserAdapter.ViewSource();
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.ViewSource();
         }
 
         public Task<string> GetSourceAsync()
         {
             var taskStringVisitor = new TaskStringVisitor();
-            managedCefBrowserAdapter.GetSource(taskStringVisitor);
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.GetSource(taskStringVisitor);
             return taskStringVisitor.Task;
         }
 
         public Task<string> GetTextAsync()
         {
             var taskStringVisitor = new TaskStringVisitor();
-            managedCefBrowserAdapter.GetText(taskStringVisitor);
+            if (managedCefBrowserAdapter != null)
+                managedCefBrowserAdapter.GetText(taskStringVisitor);
             return taskStringVisitor.Task;
         }
     }
